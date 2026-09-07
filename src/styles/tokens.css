@@ -1,0 +1,49 @@
+:root {
+  /* 바탕 */
+  --bg: #0b0e14;
+  --surface: #141a24;
+  --surface-2: #1c2432;
+  --surface-3: #253044;
+  --border: #2a3446;
+  --border-strong: #3a4760;
+
+  /* 글자 */
+  --text: #e9edf5;
+  --text-dim: #9aa5ba;
+  --text-faint: #5d6880;
+
+  /* 운동 타입 색 — 근력은 불, 러닝은 활력 */
+  --strength: #ff6b35;
+  --strength-soft: rgba(255, 107, 53, 0.14);
+  --running: #24d69a;
+  --running-soft: rgba(36, 214, 154, 0.14);
+
+  /* 게임화 */
+  --xp: #8b6cff;
+  --xp-soft: rgba(139, 108, 255, 0.16);
+  --gold: #ffc94d;
+  --danger: #ff5a68;
+  --ok: #24d69a;
+
+  /* 형태 */
+  --r-sm: 8px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-full: 999px;
+
+  /* 간격 */
+  --gap: 12px;
+  --pad: 16px;
+
+  /* 헬스장에서 장갑 끼고도 눌리는 최소 크기 */
+  --tap: 56px;
+  --tap-lg: 68px;
+
+  --nav-h: 62px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --font: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Pretendard',
+    'Noto Sans KR', 'Segoe UI', Roboto, sans-serif;
+  --mono: 'SF Mono', 'Roboto Mono', ui-monospace, monospace;
+}

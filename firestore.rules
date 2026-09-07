@@ -1,0 +1,15 @@
+rules_version = '2';
+
+// Firebase 콘솔 → Firestore Database → 규칙 에 그대로 붙여넣으세요.
+// 익명 로그인으로 받은 uid 아래의 문서만, 본인만 읽고 쓸 수 있습니다.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+  }
+}
