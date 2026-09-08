@@ -36,6 +36,30 @@ jobs:
       - name: 테스트
         run: npm test
 
+      # 설정이 실제로 전달됐는지 확인합니다. 값 자체는 찍지 않고 유무만 봅니다.
+      - name: Firebase 설정 확인
+        run: |
+          missing=""
+          present=0
+          for v in VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID \
+                   VITE_FIREBASE_STORAGE_BUCKET VITE_FIREBASE_MESSAGING_SENDER_ID VITE_FIREBASE_APP_ID; do
+            if [ -z "${!v}" ]; then missing="$missing $v"; else present=$((present+1)); fi
+          done
+          echo "설정된 값: $present / 6"
+          if [ -n "$missing" ]; then
+            echo "::warning::비어 있는 값:$missing"
+            echo "→ 이대로 배포하면 기록이 각 기기에만 저장됩니다 (앱은 정상 동작)."
+          else
+            echo "✅ 6개 모두 설정됨 — 클라우드 동기화가 켜집니다."
+          fi
+        env:
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY || secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN || secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID || secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET || secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID || secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID || secrets.VITE_FIREBASE_APP_ID }}
+
       - name: 빌드
         run: npm run build
         # Firebase 설정값. 저장소 Variables 또는 Secrets 어느 쪽에 넣어도 잡힙니다.
