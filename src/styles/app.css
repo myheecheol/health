@@ -405,3 +405,93 @@ input { font-family: inherit; }
   width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto;
 }
 .modal__title { font-size: 18px; font-weight: 800; margin-bottom: 14px; }
+
+/* ── 차트 ──────────────────────────────── */
+.chart-title { font-size: 15px; font-weight: 700; }
+.chart-sub { font-size: 12.5px; color: var(--text-faint); margin-top: 1px; }
+
+.chart-wrap { position: relative; }
+.chart-svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+/* 글자에는 계열 색을 쓰지 않습니다 */
+.chart-tick { fill: var(--text-faint); font-size: 10px; font-family: var(--mono); }
+.chart-endlabel { fill: var(--text); font-size: 11px; font-weight: 700; font-family: var(--mono); }
+.chart-hit { cursor: pointer; outline: none; }
+.chart-hit:focus-visible rect:first-child { fill: rgba(255, 255, 255, .08); }
+
+.chart-legend {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  font-size: 12.5px; color: var(--text-dim); margin-bottom: 10px;
+}
+.chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.chart-swatch { width: 9px; height: 9px; border-radius: 2px; display: inline-block; flex: none; }
+
+.chart-tip {
+  position: absolute; top: 0; right: 0;
+  background: var(--surface-3); border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm); padding: 8px 10px;
+  font-size: 12.5px; display: flex; flex-direction: column; gap: 3px;
+  pointer-events: none; box-shadow: var(--shadow); min-width: 92px;
+}
+.chart-tip b { font-size: 12px; color: var(--text-dim); font-weight: 700; }
+.chart-tip span { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.chart-tip__sub { color: var(--text-faint); font-weight: 400; font-size: 11.5px; }
+
+.chart-empty {
+  text-align: center; color: var(--text-faint);
+  padding: 30px 12px; font-size: 14px;
+}
+
+.table-scroll { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.data-table th, .data-table td {
+  text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+.data-table th:first-child, .data-table td:first-child { text-align: left; }
+.data-table th { color: var(--text-faint); font-weight: 700; font-size: 12px; }
+.data-table tr:last-child td { border-bottom: none; }
+
+/* 가로 막대 목록 */
+.barlist { display: flex; flex-direction: column; gap: 9px; }
+.barlist__row { display: grid; grid-template-columns: 100px 1fr auto; gap: 10px; align-items: center; }
+.barlist__name { font-size: 13px; color: var(--text-dim); line-height: 1.35; }
+.barlist__track { height: 10px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
+.barlist__fill { display: block; height: 100%; border-radius: 0 4px 4px 0; }
+.barlist__value {
+  font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+  min-width: 58px; text-align: right;
+}
+.barlist__sub { color: var(--text-faint); font-weight: 400; font-size: 12px; }
+
+/* 통계 섹션 */
+.stats-section { margin-top: 26px; }
+.stats-section__head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 17px; font-weight: 800; margin-bottom: 12px;
+}
+.stats-section__dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* ── 과부하 추천 ───────────────────────── */
+.suggest {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 12px; padding: 11px 12px;
+  background: var(--strength-soft); border: 1px solid var(--strength);
+  border-radius: var(--r-md);
+}
+.suggest__main { flex: 1; min-width: 0; }
+.suggest__title { font-size: 13.5px; font-weight: 700; color: var(--strength); }
+.suggest__sub { font-size: 12px; color: var(--text-dim); margin-top: 1px; }
+
+/* ── 홈 알림 ───────────────────────────── */
+.nudge {
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 14px; border-radius: var(--r-md); margin-bottom: var(--gap);
+  font-size: 14px; font-weight: 600; text-decoration: none;
+}
+.nudge__icon { font-size: 18px; line-height: 1; flex: none; }
+.nudge__text { flex: 1; }
+.nudge--urgent { background: rgba(255,90,104,.1); border: 1px solid rgba(255,90,104,.35); color: #ff9aa4; }
+.nudge--warn { background: rgba(255,201,77,.1); border: 1px solid rgba(255,201,77,.35); color: var(--gold); }
+.nudge--good { background: var(--running-soft); border: 1px solid rgba(36,214,154,.35); color: var(--running); }
+.nudge--info { background: var(--xp-soft); border: 1px solid rgba(139,108,255,.35); color: #c0aeff; }

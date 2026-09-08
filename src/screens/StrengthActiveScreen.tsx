@@ -4,6 +4,7 @@ import { getExercisesFor } from '../config/routines';
 import { isStrengthSession } from '../data/types';
 import { validateReps, validateWeight } from '../data/validate';
 import { compareWithLast } from '../domain/records';
+import { recommendWeight } from '../domain/recommend';
 import { formatClock, formatKg, formatMMSS, summarizeStrength } from '../domain/volume';
 import {
   addRestSeconds,
@@ -52,6 +53,7 @@ export function StrengthActiveScreen() {
   }, [active, exercise, position, state.exerciseStats]);
 
   // 세트가 넘어갈 때마다 입력칸을 비워 흐릿한 값이 다시 보이게 합니다.
+  const suggestion = exercise ? recommendWeight(exercise, state.exerciseStats[exercise.id]) : null;
   const setKey = `${exercise?.id ?? ''}#${position?.setNumber ?? 0}`;
   const prevKey = useRef(setKey);
   useEffect(() => {
@@ -185,6 +187,23 @@ export function StrengthActiveScreen() {
             <div className="card card--flat">
               <div className="card__label">지난 기록</div>
               <LastRecord sets={state.exerciseStats[exercise.id]?.lastSets ?? []} current={position!.setNumber} />
+
+              {/* 지난번 목표를 다 채웠으면 올려보라고 제안합니다. 강제하지 않습니다. */}
+              {suggestion && position!.setNumber === 1 && (
+                <div className="suggest">
+                  <div className="suggest__main">
+                    <div className="suggest__title">🔥 중량을 올려볼 때입니다</div>
+                    <div className="suggest__sub">{suggestion.message}</div>
+                  </div>
+                  <button
+                    className="btn btn--sm"
+                    style={{ background: 'var(--strength)', color: '#1a0d05' }}
+                    onClick={() => { setWeight(String(suggestion.suggested)); setError(null); }}
+                  >
+                    {formatKg(suggestion.suggested)}kg 적용
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="card">

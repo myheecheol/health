@@ -72,7 +72,26 @@ function load(): AppState {
     schemaVersion: SCHEMA_VERSION,
   };
 
-  return migrate(loaded);
+  return withDerivedProgress(rebuildExerciseStats(migrate(loaded)));
+}
+
+/**
+ * 종목별 캐시가 비어 있는데 기록은 있는 경우, 기록에서 다시 만듭니다.
+ * 백업 복원이나 다른 기기에서 내려받은 직후에 이런 상태가 됩니다.
+ * 캐시가 이미 있으면 건드리지 않습니다.
+ */
+function rebuildExerciseStats(s: AppState): AppState {
+  const hasSessions = s.sessions.some((x) => x.completed && x.deletedAt === null);
+  if (!hasSessions || Object.keys(s.exerciseStats).length > 0) return s;
+
+  let stats: Record<string, ExerciseStats> = {};
+  for (const session of s.sessions
+    .filter((x) => x.completed && x.deletedAt === null)
+    .sort((a, b) => a.startTime - b.startTime)) {
+    stats = applySessionToStats(stats, session).stats;
+  }
+  if (Object.keys(stats).length > 0) write('exerciseStats', stats);
+  return { ...s, exerciseStats: stats };
 }
 
 /**
@@ -132,6 +151,7 @@ type Slice =
 
 /**
  * XP·레벨·스트릭·포인트·업적을 기록에서 다시 계산해 채웁니다.
+ * 앱을 열 때도 한 번 돌기 때문에, 요약값이 기록과 어긋난 채로 남을 수 없습니다.
  *
  * 값을 조금씩 더하는 대신 매번 전체를 다시 구하는 이유는,
  * 한 번이라도 어긋나면 영영 틀어진 채로 남기 때문입니다.

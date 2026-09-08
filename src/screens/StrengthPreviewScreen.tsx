@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { estimatedMinutes, getExercisesFor, getRoutine, MUSCLE_LABEL, totalSetsFor } from '../config/routines';
 import type { Condition } from '../data/types';
 import { getNextStrengthRoutine, otherRoutine } from '../domain/progression';
+import { countReadyToIncrease } from '../domain/recommend';
 import { discardActiveSession, startStrengthSession } from '../state/store';
 import { useAppState } from '../state/useStore';
 import { ConditionPicker } from '../components/ConditionPicker';
@@ -19,11 +20,8 @@ export function StrengthPreviewScreen() {
   const exercises = getExercisesFor(type);
   const [minMin, maxMin] = estimatedMinutes(type);
 
-  // 지난 운동에서 목표 반복을 전부 채운 종목 수 (요구사항 22절 "향상된 기록")
-  const readyToIncrease = exercises.filter((ex) => {
-    const stats = state.exerciseStats[ex.id];
-    return stats && stats.lastSets.length > 0 && stats.lastSets.every((s) => s.reps >= ex.targetReps);
-  }).length;
+  // 지난 운동에서 목표 반복을 전부 채워, 중량을 올려볼 만한 종목 수 (요구사항 22절)
+  const readyToIncrease = countReadyToIncrease(exercises, state.exerciseStats);
 
   function start() {
     // 다른 종류의 세션이 진행 중이면 먼저 정리합니다.

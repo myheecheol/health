@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { REST_PRESETS } from '../config/gameConfig';
 import { getRoutine } from '../config/routines';
 import { downloadBackup, restoreBackup } from '../data/backup';
@@ -21,6 +22,7 @@ export function SettingsScreen() {
 
   const next = getNextStrengthRoutine(state.sessions, state.user.nextRoutineOverride);
   const sessionCount = visibleSessions().length;
+  const achievementCount = Object.keys(state.achievements).length;
   const kb = Math.round(usageBytes() / 1024);
 
   async function handleRestore(file: File) {
@@ -34,6 +36,25 @@ export function SettingsScreen() {
       <TopBar title="설정" />
       <div className="page">
         {message && <div className="banner banner--info">{message}</div>}
+
+        <div className="list" style={{ marginBottom: 'var(--gap)' }}>
+          <Link to="/stats" className="list-item">
+            <span style={{ fontSize: 20 }}>📊</span>
+            <div className="list-item__main">
+              <div className="list-item__title">통계</div>
+              <div className="list-item__sub">볼륨 추이 · 러닝 거리 · 최고 중량</div>
+            </div>
+            <div className="list-item__right">→</div>
+          </Link>
+          <Link to="/achievements" className="list-item">
+            <span style={{ fontSize: 20 }}>🏅</span>
+            <div className="list-item__main">
+              <div className="list-item__title">업적</div>
+              <div className="list-item__sub">{achievementCount}개 해금</div>
+            </div>
+            <div className="list-item__right">→</div>
+          </Link>
+        </div>
 
         {/* 데이터 안전 — 가장 위에 둡니다 */}
         <div className="card">

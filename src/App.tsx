@@ -4,11 +4,11 @@ import { BottomNav } from './components/BottomNav';
 import { onStorageFailure } from './data/localStore';
 import { initSync } from './data/syncEngine';
 import { AchievementsScreen } from './screens/AchievementsScreen';
-import { ComingSoonScreen } from './screens/ComingSoonScreen';
 import { CompleteScreen } from './screens/CompleteScreen';
 import { HistoryScreen, SessionDetailScreen } from './screens/HistoryScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { RewardShopScreen } from './screens/RewardShopScreen';
+import { StatsScreen } from './screens/StatsScreen';
 import { RunningScreen } from './screens/RunningScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { StrengthActiveScreen } from './screens/StrengthActiveScreen';
@@ -36,15 +36,7 @@ function Shell() {
         <Route path="/complete/:sessionId" element={<CompleteScreen />} />
         <Route path="/history" element={<HistoryScreen />} />
         <Route path="/history/:sessionId" element={<SessionDetailScreen />} />
-        <Route
-          path="/stats"
-          element={
-            <ComingSoonScreen
-              title="통계" emoji="📊" stage="5단계"
-              items={['총 운동 횟수/시간', '웨이트 볼륨 추이', '러닝 누적 거리', '종목별 최고 중량', '월간·연간 러닝']}
-            />
-          }
-        />
+        <Route path="/stats" element={<StatsScreen />} />
         <Route path="/rewards" element={<RewardShopScreen />} />
         <Route path="/achievements" element={<AchievementsScreen />} />
         <Route path="/calendar" element={<Navigate to="/history" replace />} />

@@ -3,6 +3,7 @@ import { getRoutine } from '../config/routines';
 import { isRunningSession } from '../data/types';
 import { getLevelProgress } from '../domain/level';
 import { getNextStrengthRoutine, otherRoutine } from '../domain/progression';
+import { pickNudge } from '../domain/nudge';
 import { nextStreakMilestone } from '../domain/streak';
 import { formatDuration, formatKm, summarizeStrength } from '../domain/volume';
 import { setNextRoutineOverride, visibleSessions } from '../state/store';
@@ -24,6 +25,9 @@ export function HomeScreen() {
     .filter((r) => r.active && r.cost <= state.user.rewardPoints)
     .sort((a, b) => b.cost - a.cost)[0];
 
+  // 상황에 맞는 알림 하나. 여러 개를 한꺼번에 띄우지 않습니다.
+  const nudge = pickNudge({ user: state.user, sessions: state.sessions, rewards: state.rewards });
+
   return (
     <div className="page">
       {/* 진행 중이던 운동이 있으면 가장 먼저 알립니다 — 기록이 사라졌다고 오해하지 않도록 */}
@@ -43,6 +47,21 @@ export function HomeScreen() {
         <h1 className="page-title" style={{ margin: 0 }}>🏋️ MY FITNESS RPG</h1>
         <SyncBadge />
       </div>
+
+      {nudge && !state.active && (
+        nudge.to ? (
+          <Link to={nudge.to} className={`nudge nudge--${nudge.tone}`}>
+            <span className="nudge__icon">{nudge.icon}</span>
+            <span className="nudge__text">{nudge.text}</span>
+            <span aria-hidden>→</span>
+          </Link>
+        ) : (
+          <div className={`nudge nudge--${nudge.tone}`}>
+            <span className="nudge__icon">{nudge.icon}</span>
+            <span className="nudge__text">{nudge.text}</span>
+          </div>
+        )
+      )}
 
       {/* 레벨 / XP / 스트릭 */}
       <div className="card">

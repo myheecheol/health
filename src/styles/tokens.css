@@ -18,6 +18,18 @@
   --running: #24d69a;
   --running-soft: rgba(36, 214, 154, 0.14);
 
+  /*
+   * 차트용 색.
+   * UI 색(--strength/--running)을 그대로 쓰면 어두운 배경에서 너무 밝아
+   * 밝기 범위를 벗어나므로, 같은 계열의 어두운 단계를 따로 둡니다.
+   * 색약 구분(ΔE 10.0)과 배경 대비(3:1 이상)를 검증한 값입니다.
+   */
+  --chart-strength: #ed6431;
+  --chart-running: #1dad7d;
+  --chart-xp: #8b6cff;
+  --chart-grid: #232c3c;
+  --chart-surface: #141a24;
+
   /* 게임화 */
   --xp: #8b6cff;
   --xp-soft: rgba(139, 108, 255, 0.16);
