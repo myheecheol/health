@@ -1,4 +1,6 @@
+import { ACHIEVEMENTS } from '../config/achievements';
 import { DEFAULT_REST_SECONDS } from '../config/gameConfig';
+import { DEFAULT_REWARDS } from '../config/rewards';
 import { getExercisesFor } from '../config/routines';
 import { newId, toDateKey } from '../data/ids';
 import { read, write } from '../data/localStore';
@@ -9,17 +11,27 @@ import type {
   AppState,
   Condition,
   ExerciseStats,
+  Reward,
+  RewardHistoryEntry,
   RunningRecord,
   SetRecord,
   StrengthType,
   User,
   UserSettings,
   WorkoutSession,
+  XPHistoryEntry,
 } from '../data/types';
 import { isStrengthSession } from '../data/types';
+import { evaluateAchievements } from '../domain/achievements';
+import { getLevel } from '../domain/level';
 import { applySessionToStats, type PersonalRecord } from '../domain/records';
+import { computeStats } from '../domain/stats';
+import { computeStreak } from '../domain/streak';
+import { computeSessionXp, type XpLine } from '../domain/xp';
 
 const SCHEMA_VERSION = 1;
+/** 내용 구조 버전. 지난 기록을 다시 계산해야 할 때 올립니다. */
+const CURRENT_DATA_VERSION = 2;
 
 function createUser(): User {
   const now = Date.now();
@@ -33,23 +45,134 @@ function createUser(): User {
     bestStreak: 0,
     nextRoutineOverride: null,
     settings: { restSeconds: DEFAULT_REST_SECONDS, soundEnabled: true, browserNotification: false },
+    dataVersion: CURRENT_DATA_VERSION,
     createdAt: now,
     updatedAt: now,
   };
 }
 
+/** 처음 실행할 때 기본 보상을 깔아줍니다. */
+function seedRewards(): Reward[] {
+  return DEFAULT_REWARDS.map((r) => ({ ...r, id: newId('rw') }));
+}
+
 function load(): AppState {
-  return {
+  const storedRewards = read<Reward[] | null>('rewards', null);
+
+  const loaded: AppState = {
     user: read<User>('user', createUser()),
     sessions: read<WorkoutSession[]>('sessions', []),
     exerciseStats: read<Record<string, ExerciseStats>>('exerciseStats', {}),
     active: read<ActiveSession | null>('active', null),
     restEndsAt: read<number | null>('restEndsAt', null),
+    rewards: storedRewards ?? seedRewards(),
+    rewardHistory: read<RewardHistoryEntry[]>('rewardHistory', []),
+    achievements: read<Record<string, number>>('achievements', {}),
+    xpHistory: read<XPHistoryEntry[]>('xpHistory', []),
     schemaVersion: SCHEMA_VERSION,
+  };
+
+  return migrate(loaded);
+}
+
+/**
+ * 3단계에서 XP가 도입되기 전에 만든 기록은 xpEarned 가 0입니다.
+ * 그대로 두면 "운동 4번 했는데 Lv.1 0XP"가 되므로, 지난 기록에도 규칙을 소급 적용합니다.
+ * 저장소 키 버전이 아니라 User.dataVersion 으로 판단하므로 기존 데이터가 사라지지 않습니다.
+ */
+function migrate(s: AppState): AppState {
+  if ((s.user.dataVersion ?? 1) >= CURRENT_DATA_VERSION) return s;
+
+  const completed = s.sessions
+    .filter((x) => x.completed && x.deletedAt === null)
+    .sort((a, b) => a.startTime - b.startTime);
+
+  const recomputed = new Map<string, { xp: number; points: number }>();
+  const seen: WorkoutSession[] = [];
+  let stats: Record<string, ExerciseStats> = {};
+
+  for (const session of completed) {
+    const { stats: nextStats, personalRecords } = applySessionToStats(stats, session);
+    stats = nextStats;
+    seen.push(session);
+    const streak = computeStreak(seen);
+    const xp = computeSessionXp(session, {
+      currentStreak: streak.current,
+      totalSessions: seen.length,
+      personalRecords,
+    });
+    recomputed.set(session.id, { xp: xp.total, points: xp.points });
+  }
+
+  const sessions = s.sessions.map((session) => {
+    const r = recomputed.get(session.id);
+    return r ? { ...session, xpEarned: r.xp, pointsEarned: r.points } : session;
+  });
+
+  const migrated: AppState = {
+    ...s,
+    sessions,
+    exerciseStats: Object.keys(s.exerciseStats).length ? s.exerciseStats : stats,
+    user: { ...s.user, dataVersion: CURRENT_DATA_VERSION },
+  };
+  const withProgress = withDerivedProgress(migrated);
+
+  // 계산 결과를 바로 저장해 두 번 계산하지 않게 합니다.
+  write('sessions', withProgress.sessions);
+  write('user', withProgress.user);
+  write('achievements', withProgress.achievements);
+  write('exerciseStats', withProgress.exerciseStats);
+  write('rewards', withProgress.rewards);
+  return withProgress;
+}
+
+type Slice =
+  | 'user' | 'sessions' | 'exerciseStats' | 'active' | 'restEndsAt'
+  | 'rewards' | 'rewardHistory' | 'achievements' | 'xpHistory';
+
+/**
+ * XP·레벨·스트릭·포인트·업적을 기록에서 다시 계산해 채웁니다.
+ *
+ * 값을 조금씩 더하는 대신 매번 전체를 다시 구하는 이유는,
+ * 한 번이라도 어긋나면 영영 틀어진 채로 남기 때문입니다.
+ * 세션이 수백 건이어도 순식간에 끝나므로 정확성을 택했습니다.
+ *
+ * 포인트만은 '쓴 내역'이 있어야 하므로 (번 것 - 쓴 것)으로 구합니다.
+ */
+function withDerivedProgress(s: AppState): AppState {
+  const done = s.sessions.filter((x) => x.completed && x.deletedAt === null);
+
+  const xp = done.reduce((sum, x) => sum + (x.xpEarned || 0), 0);
+  const earnedPoints = done.reduce((sum, x) => sum + (x.pointsEarned || 0), 0);
+  const spentPoints = s.rewardHistory.reduce((sum, h) => sum + h.cost, 0);
+  const streak = computeStreak(s.sessions);
+
+  const { unlocked } = evaluateAchievements(s.achievements, {
+    stats: computeStats(s.sessions),
+    currentStreak: streak.current,
+    bestStreak: streak.best,
+    personalRecordCount: countPersonalRecords(s.exerciseStats),
+  });
+
+  return {
+    ...s,
+    achievements: unlocked,
+    user: {
+      ...s.user,
+      xp,
+      level: getLevel(xp),
+      rewardPoints: Math.max(0, earnedPoints - spentPoints),
+      currentStreak: streak.current,
+      bestStreak: Math.max(streak.best, s.user.bestStreak || 0),
+      updatedAt: Date.now(),
+    },
   };
 }
 
-type Slice = 'user' | 'sessions' | 'exerciseStats' | 'active' | 'restEndsAt';
+/** 종목별 캐시에 남은 최고 기록 수 — '첫 PR' 업적 판정용 */
+function countPersonalRecords(stats: Record<string, ExerciseStats>): number {
+  return Object.values(stats).filter((s) => s.maxWeight > 0 || s.maxReps > 0).length;
+}
 
 let state: AppState = load();
 const listeners = new Set<() => void>();
@@ -89,6 +212,20 @@ function commit(patch: Partial<AppState>, slices: Slice[]) {
         break;
       case 'restEndsAt':
         write('restEndsAt', state.restEndsAt);
+        break;
+      case 'rewards':
+        write('rewards', state.rewards);
+        state.rewards.forEach((r) => enqueue('rewards', r.id, r));
+        break;
+      case 'rewardHistory':
+        write('rewardHistory', state.rewardHistory);
+        break;
+      case 'achievements':
+        write('achievements', state.achievements);
+        enqueue('achievements', 'unlocked', state.achievements);
+        break;
+      case 'xpHistory':
+        write('xpHistory', state.xpHistory);
         break;
     }
   }
@@ -226,6 +363,93 @@ export function addRestSeconds(delta: number): void {
 export interface FinishResult {
   session: WorkoutSession;
   personalRecords: PersonalRecord[];
+  xpLines: XpLine[];
+  /** 이번 운동으로 오른 레벨. 안 올랐으면 null */
+  levelUp: { from: number; to: number } | null;
+  newAchievements: AchievementSummary[];
+  streak: number;
+}
+
+/**
+ * 완료 화면으로 넘길 업적 정보.
+ *
+ * 원본 AchievementDef 에는 조건 판정 함수가 들어 있는데,
+ * 함수는 브라우저 방문 기록에 실을 수 없어 화면 전환이 통째로 실패합니다.
+ * 그래서 보여줄 값만 뽑아 평범한 객체로 넘깁니다.
+ */
+export interface AchievementSummary {
+  id: string;
+  name: string;
+  description: string;
+  emoji: string;
+}
+
+/**
+ * 세션을 끝내고 보상을 정산하는 공통 절차.
+ * 근력과 러닝이 같은 계산을 거치게 해서 규칙이 갈라지지 않도록 합니다.
+ */
+function finalize(finished: WorkoutSession, extra: Partial<AppState>, slices: Slice[]): FinishResult {
+  const now = Date.now();
+  const sessions = [...state.sessions, finished];
+
+  const { stats, personalRecords } = applySessionToStats(state.exerciseStats, finished);
+  const touched = Object.keys(stats).filter((id) => stats[id] !== state.exerciseStats[id]);
+
+  const streak = computeStreak(sessions);
+  const totalSessions = sessions.filter((x) => x.completed && x.deletedAt === null).length;
+
+  const xp = computeSessionXp(finished, {
+    currentStreak: streak.current,
+    totalSessions,
+    personalRecords,
+  });
+
+  const scored: WorkoutSession = { ...finished, xpEarned: xp.total, pointsEarned: xp.points };
+  const levelBefore = getLevel(state.user.xp);
+
+  const xpHistory: XPHistoryEntry[] = [
+    ...state.xpHistory,
+    ...xp.lines.map((line) => ({
+      id: newId('xp'),
+      amount: line.amount,
+      reason: line.reason,
+      label: line.label,
+      workoutSessionId: scored.id,
+      createdAt: now,
+    })),
+  ];
+
+  const beforeAchievements = state.achievements;
+  const next = withDerivedProgress({
+    ...state,
+    ...extra,
+    sessions: sessions.map((x) => (x.id === scored.id ? scored : x)),
+    exerciseStats: stats,
+    xpHistory,
+    active: null,
+    restEndsAt: null,
+  });
+
+  const newAchievements: AchievementSummary[] = ACHIEVEMENTS
+    .filter((a) => next.achievements[a.id] && !beforeAchievements[a.id])
+    .map(({ id, name, description, emoji }) => ({ id, name, description, emoji }));
+  const levelAfter = next.user.level;
+
+  commit(next, [
+    'sessions', 'exerciseStats', 'active', 'restEndsAt',
+    'user', 'achievements', 'xpHistory', ...slices,
+  ]);
+  syncSession(scored);
+  syncStats(touched);
+
+  return {
+    session: scored,
+    personalRecords,
+    xpLines: xp.lines,
+    levelUp: levelAfter > levelBefore ? { from: levelBefore, to: levelAfter } : null,
+    newAchievements,
+    streak: next.user.currentStreak,
+  };
 }
 
 export function finishStrengthSession(notes: string): FinishResult | null {
@@ -242,23 +466,13 @@ export function finishStrengthSession(notes: string): FinishResult | null {
     updatedAt: now,
   };
 
-  const { stats, personalRecords } = applySessionToStats(state.exerciseStats, finished);
-  const touched = Object.keys(stats).filter((id) => stats[id] !== state.exerciseStats[id]);
-
   // 사용자가 지정했던 다음 루틴은 그 루틴을 실제로 수행했으면 해제합니다.
-  const user: User =
+  const extra =
     state.user.nextRoutineOverride === finished.workoutType
-      ? { ...state.user, nextRoutineOverride: null, updatedAt: now }
-      : state.user;
+      ? { user: { ...state.user, nextRoutineOverride: null, updatedAt: now } }
+      : {};
 
-  commit(
-    { sessions: [...state.sessions, finished], exerciseStats: stats, active: null, restEndsAt: null, user },
-    ['sessions', 'exerciseStats', 'active', 'restEndsAt', ...(user !== state.user ? (['user'] as const) : [])],
-  );
-  syncSession(finished);
-  syncStats(touched);
-
-  return { session: finished, personalRecords };
+  return finalize(finished, extra, []);
 }
 
 export function finishRunningSession(distanceKm: number, notes: string): FinishResult | null {
@@ -269,30 +483,57 @@ export function finishRunningSession(distanceKm: number, notes: string): FinishR
 
   const now = Date.now();
   const duration = Math.round((now - active.startTime) / 1000);
-  const run: RunningRecord = {
-    ...active.run,
-    distanceKm,
-    duration,
-    completed: true,
-  };
+  const run: RunningRecord = { ...active.run, distanceKm, duration, completed: true };
   const finished: WorkoutSession = {
-    ...active,
-    run,
-    endTime: now,
-    duration,
-    notes,
-    completed: true,
-    updatedAt: now,
+    ...active, run, endTime: now, duration, notes, completed: true, updatedAt: now,
   };
 
-  commit({ sessions: [...state.sessions, finished], active: null, restEndsAt: null }, [
-    'sessions',
-    'active',
-    'restEndsAt',
-  ]);
-  syncSession(finished);
+  return finalize(finished, {}, []);
+}
 
-  return { session: finished, personalRecords: [] };
+// ─────────────────────────────────────────────────────────────
+// 보상 (요구사항 13~15절)
+// ─────────────────────────────────────────────────────────────
+
+export type PurchaseResult =
+  | { ok: true; remaining: number }
+  | { ok: false; error: string };
+
+/** 보상을 교환합니다. 포인트가 모자라면 아무것도 바꾸지 않습니다. */
+export function redeemReward(rewardId: string): PurchaseResult {
+  const reward = state.rewards.find((r) => r.id === rewardId);
+  if (!reward) return { ok: false, error: '보상을 찾을 수 없습니다' };
+  if (reward.cost > state.user.rewardPoints) {
+    return { ok: false, error: `${reward.cost - state.user.rewardPoints}P가 더 필요해요` };
+  }
+
+  const entry: RewardHistoryEntry = {
+    id: newId('rh'),
+    rewardId: reward.id,
+    rewardName: reward.name,
+    rewardEmoji: reward.emoji,
+    cost: reward.cost,
+    usedAt: Date.now(),
+  };
+
+  const next = withDerivedProgress({ ...state, rewardHistory: [...state.rewardHistory, entry] });
+  commit(next, ['rewardHistory', 'user']);
+  enqueue('rewardHistory', entry.id, entry);
+
+  return { ok: true, remaining: next.user.rewardPoints };
+}
+
+export function addReward(reward: Omit<Reward, 'id'>): void {
+  commit({ rewards: [...state.rewards, { ...reward, id: newId('rw') }] }, ['rewards']);
+}
+
+export function updateReward(id: string, patch: Partial<Omit<Reward, 'id'>>): void {
+  commit({ rewards: state.rewards.map((r) => (r.id === id ? { ...r, ...patch } : r)) }, ['rewards']);
+}
+
+/** 상점에서 지웁니다. 사용 내역은 그대로 남습니다. */
+export function removeReward(id: string): void {
+  commit({ rewards: state.rewards.filter((r) => r.id !== id) }, ['rewards']);
 }
 
 /**
@@ -334,17 +575,40 @@ export function updateSettings(patch: Partial<UserSettings>): void {
   );
 }
 
-/** 백업 복원 등으로 상태 전체를 교체합니다. */
-export function replaceAll(next: Pick<AppState, 'user' | 'sessions' | 'exerciseStats'>): void {
-  commit({ ...next, active: null, restEndsAt: null }, [
-    'user',
-    'sessions',
-    'exerciseStats',
-    'active',
-    'restEndsAt',
+/**
+ * 백업 복원 등으로 상태 전체를 교체합니다.
+ * 교체 후 진행도(XP/레벨/스트릭/포인트/업적)는 기록에서 다시 계산하므로
+ * 백업 파일에 담긴 요약값이 낡았더라도 어긋나지 않습니다.
+ */
+export function replaceAll(
+  next: Pick<AppState, 'user' | 'sessions' | 'exerciseStats'> &
+    Partial<Pick<AppState, 'rewards' | 'rewardHistory' | 'achievements'>>,
+): void {
+  const merged = withDerivedProgress({
+    ...state,
+    ...next,
+    rewards: next.rewards ?? state.rewards,
+    rewardHistory: next.rewardHistory ?? state.rewardHistory,
+    achievements: next.achievements ?? state.achievements,
+    active: null,
+    restEndsAt: null,
+  });
+  commit(merged, [
+    'user', 'sessions', 'exerciseStats', 'active', 'restEndsAt',
+    'rewards', 'rewardHistory', 'achievements',
   ]);
-  next.sessions.forEach(syncSession);
-  syncStats(Object.keys(next.exerciseStats));
+  merged.sessions.forEach(syncSession);
+  syncStats(Object.keys(merged.exerciseStats));
+}
+
+/** 화면에서 쓰는 파생 정보 모음 */
+export function currentAchievementContext() {
+  return {
+    stats: computeStats(state.sessions),
+    currentStreak: state.user.currentStreak,
+    bestStreak: state.user.bestStreak,
+    personalRecordCount: countPersonalRecords(state.exerciseStats),
+  };
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -125,7 +125,7 @@ export function SettingsScreen() {
               </button>
             ))}
           </div>
-          <div className="field" style={{ marginTop: 12 }}>
+          <label className="field" style={{ marginTop: 12 }}>
             <span className="field__label">직접 입력 (초)</span>
             <input
               className="input"
@@ -139,7 +139,7 @@ export function SettingsScreen() {
                 if (Number.isFinite(n) && n >= 5 && n <= 600) updateSettings({ restSeconds: n });
               }}
             />
-          </div>
+          </label>
         </div>
 
         {/* 알림 */}

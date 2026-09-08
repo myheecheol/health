@@ -3,10 +3,12 @@ import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-d
 import { BottomNav } from './components/BottomNav';
 import { onStorageFailure } from './data/localStore';
 import { initSync } from './data/syncEngine';
+import { AchievementsScreen } from './screens/AchievementsScreen';
 import { ComingSoonScreen } from './screens/ComingSoonScreen';
 import { CompleteScreen } from './screens/CompleteScreen';
 import { HistoryScreen, SessionDetailScreen } from './screens/HistoryScreen';
 import { HomeScreen } from './screens/HomeScreen';
+import { RewardShopScreen } from './screens/RewardShopScreen';
 import { RunningScreen } from './screens/RunningScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { StrengthActiveScreen } from './screens/StrengthActiveScreen';
@@ -43,24 +45,8 @@ function Shell() {
             />
           }
         />
-        <Route
-          path="/rewards"
-          element={
-            <ComingSoonScreen
-              title="보상 상점" emoji="🎁" stage="4단계"
-              items={['보상 직접 등록/수정/삭제', '포인트로 교환', '보상 사용 내역']}
-            />
-          }
-        />
-        <Route
-          path="/achievements"
-          element={
-            <ComingSoonScreen
-              title="업적" emoji="🏅" stage="3단계"
-              items={['첫 운동 / 첫 러닝', '누적 운동 10·50·100회', '누적 러닝 5·10·50·100·500km', '연속 운동 10회', '첫 PR']}
-            />
-          }
-        />
+        <Route path="/rewards" element={<RewardShopScreen />} />
+        <Route path="/achievements" element={<AchievementsScreen />} />
         <Route path="/calendar" element={<Navigate to="/history" replace />} />
         <Route path="/settings" element={<SettingsScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -115,7 +115,7 @@ function RunningActive() {
 
     setSaving(true);
     const finished = finishRunningSession(result.value, notes);
-    if (finished) nav(`/complete/${finished.session.id}`, { replace: true });
+    if (finished) nav(`/complete/${finished.session.id}`, { replace: true, state: { result: finished } });
     else {
       setSaving(false);
       setError('저장에 실패했습니다. 다시 시도해주세요.');
@@ -173,7 +173,7 @@ function RunningActive() {
         </div>
 
         <div className="card">
-          <div className="field">
+          <label className="field">
             <span className="field__label">러닝 메모 (선택)</span>
             <input
               className="input input--text"
@@ -181,7 +181,7 @@ function RunningActive() {
               onChange={(e) => setNotes(e.target.value)}
               placeholder="오늘 러닝 생각보다 힘들었음..."
             />
-          </div>
+          </label>
         </div>
 
         <button className="btn btn--running btn--lg" onClick={finish} disabled={saving}>

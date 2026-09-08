@@ -3,6 +3,7 @@ import { getRoutine } from '../config/routines';
 import { isRunningSession } from '../data/types';
 import { getLevelProgress } from '../domain/level';
 import { getNextStrengthRoutine, otherRoutine } from '../domain/progression';
+import { nextStreakMilestone } from '../domain/streak';
 import { formatDuration, formatKm, summarizeStrength } from '../domain/volume';
 import { setNextRoutineOverride, visibleSessions } from '../state/store';
 import { useAppState } from '../state/useStore';
@@ -15,7 +16,13 @@ export function HomeScreen() {
   const next = getNextStrengthRoutine(state.sessions, state.user.nextRoutineOverride);
   const routine = getRoutine(next);
   const progress = getLevelProgress(state.user.xp);
+  const nextTarget = nextStreakMilestone(state.user.currentStreak);
   const recent = [...sessions].sort((a, b) => b.startTime - a.startTime).slice(0, 3);
+
+  // 지금 포인트로 바로 바꿀 수 있는 보상 중 가장 비싼 것
+  const affordable = state.rewards
+    .filter((r) => r.active && r.cost <= state.user.rewardPoints)
+    .sort((a, b) => b.cost - a.cost)[0];
 
   return (
     <div className="page">
@@ -48,8 +55,15 @@ export function HomeScreen() {
         <div className="xpbar" style={{ marginTop: 12 }}>
           <div className="xpbar__fill" style={{ width: `${Math.round(progress.ratio * 100)}%` }} />
         </div>
-        <div className="muted" style={{ marginTop: 6, fontSize: 13 }}>
-          {progress.intoLevel} / {progress.needed} XP
+        <div className="row" style={{ marginTop: 6 }}>
+          <span className="muted" style={{ fontSize: 13 }}>
+            {progress.intoLevel.toLocaleString('ko-KR')} / {progress.needed.toLocaleString('ko-KR')} XP
+          </span>
+          {nextTarget && (
+            <span className="muted" style={{ fontSize: 13 }}>
+              다음 목표 {nextTarget}회 연속
+            </span>
+          )}
         </div>
       </div>
 
@@ -115,7 +129,7 @@ export function HomeScreen() {
         <div className="row">
           <div>
             <div className="card__label" style={{ margin: 0 }}>🎁 보상 포인트</div>
-            <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4 }}>
+            <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4, color: 'var(--gold)' }}>
               {state.user.rewardPoints.toLocaleString('ko-KR')}P
             </div>
           </div>
@@ -123,6 +137,11 @@ export function HomeScreen() {
             보상 상점
           </Link>
         </div>
+        {affordable && (
+          <div className="badge badge--warn" style={{ marginTop: 10 }}>
+            지금 {affordable.emoji} {affordable.name} 교환 가능
+          </div>
+        )}
       </div>
     </div>
   );

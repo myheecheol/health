@@ -16,9 +16,9 @@ export const XP_RULES = {
   /** 개인 최고 기록 갱신 */
   PERSONAL_RECORD: 30,
   /** 러닝 1km당 */
-  RUNNING_PER_KM: 20,
-  /** 러닝 1회 XP 상한 (null = 무제한) */
-  RUNNING_SESSION_MAX: 300 as number | null,
+  RUNNING_PER_KM: 30,
+  /** 러닝 1회 XP 상한 (null = 무제한). 15km까지는 그대로 받습니다. */
+  RUNNING_SESSION_MAX: 450 as number | null,
   /** 7회 연속 운동 보너스 */
   STREAK_7: 100,
   /** 누적 30회 운동 보너스 */
@@ -29,7 +29,12 @@ export const XP_RULES = {
 
 /**
  * 보상 포인트 = 획득 XP × POINT_RATE (반올림).
- * 요구사항 24절 예시(136XP → 68P, 185XP → 95P)에서 역산한 값입니다.
+ *
+ * 이 값과 위의 XP 규칙은 "운동 2~3번이면 약속(300P) 한 번"이 되도록 맞췄습니다.
+ *   근력 A/B 1회  ≈ 340~370 XP → 170~185P  → 2번이면 약속
+ *   러닝 6.8km    ≈ 204 XP     → 102P       → 3번이면 약속
+ *   러닝 10km     ≈ 300 XP     → 150P       → 2번이면 약속
+ * 보상 가격(REWARDS)을 바꾸면 이 균형도 함께 다시 보세요.
  */
 export const POINT_RATE = 0.5;
 
@@ -39,10 +44,22 @@ export const POINT_RATE = 0.5;
  * { kind: 'table', thresholds: [...] } 로 바꾸면 됩니다.
  */
 export type LevelCurve =
+  /** 모든 레벨이 같은 XP */
   | { kind: 'flat'; xpPerLevel: number }
+  /** 레벨이 오를수록 조금씩 더 필요 — Lv.N→N+1 에 base + (N-1)×step */
+  | { kind: 'linear'; base: number; step: number }
+  /** 레벨별로 직접 지정 */
   | { kind: 'table'; thresholds: number[] };
 
-export const LEVEL_CURVE: LevelCurve = { kind: 'flat', xpPerLevel: 500 };
+/**
+ * 운동 1회가 약 340 XP이므로,
+ *   Lv.1 → Lv.2  600 XP  (운동 2번)
+ *   Lv.2 → Lv.3  900 XP  (운동 3번)
+ *   ...
+ *   Lv.10 까지 누적 16,200 XP (운동 약 48번)
+ * 처음엔 금방 오르고 갈수록 천천히 오릅니다.
+ */
+export const LEVEL_CURVE: LevelCurve = { kind: 'linear', base: 600, step: 300 };
 
 /**
  * 연속 운동(Streak) 규칙.

@@ -110,6 +110,37 @@ export interface ExerciseStats {
   updatedAt: number;
 }
 
+export interface Reward {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string;
+  /** 필요한 포인트 */
+  cost: number;
+  category: string;
+  /** 끄면 상점에서 숨겨집니다. 지우지 않고 숨기는 쪽을 기본으로 씁니다. */
+  active: boolean;
+}
+
+export interface RewardHistoryEntry {
+  id: string;
+  rewardId: string;
+  /** 보상 이름이 나중에 바뀌어도 사용 내역은 그대로 남도록 함께 저장합니다 */
+  rewardName: string;
+  rewardEmoji: string;
+  cost: number;
+  usedAt: number;
+}
+
+export interface XPHistoryEntry {
+  id: string;
+  amount: number;
+  reason: string;
+  label: string;
+  workoutSessionId: string | null;
+  createdAt: number;
+}
+
 export interface UserSettings {
   restSeconds: number;
   soundEnabled: boolean;
@@ -127,6 +158,8 @@ export interface User {
   /** 다음 근력 루틴 수동 지정 (요구사항 34절). 해당 세션 완료 시 자동 해제 */
   nextRoutineOverride: StrengthType | null;
   settings: UserSettings;
+  /** 내용 마이그레이션용. 저장소 키 버전과는 별개입니다. */
+  dataVersion: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -137,7 +170,7 @@ export type ActiveSession = WorkoutSession & { completed: false };
 /** 동기화 대기열 항목 */
 export interface OutboxItem {
   id: string;
-  collection: 'sessions' | 'user' | 'exerciseStats' | 'active';
+  collection: 'sessions' | 'user' | 'exerciseStats' | 'active' | 'rewards' | 'rewardHistory' | 'achievements';
   docId: string;
   /** 저장할 문서 전체 (last-write-wins) */
   payload: unknown;
@@ -156,5 +189,10 @@ export interface AppState {
   active: ActiveSession | null;
   /** 휴식 타이머 종료 시각(epoch ms). null이면 휴식 중 아님 */
   restEndsAt: number | null;
+  rewards: Reward[];
+  rewardHistory: RewardHistoryEntry[];
+  /** 업적 id → 해금 시각 */
+  achievements: Record<string, number>;
+  xpHistory: XPHistoryEntry[];
   schemaVersion: number;
 }

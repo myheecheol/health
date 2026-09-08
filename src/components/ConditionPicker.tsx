@@ -55,7 +55,7 @@ export function ConditionPicker({
         </button>
       ) : (
         <div className="set-inputs" style={{ marginTop: 12 }}>
-          <div className="field">
+          <label className="field">
             <span className="field__label">수면 (시간)</span>
             <input
               className="input"
@@ -69,8 +69,8 @@ export function ConditionPicker({
                 onChange({ mood: value?.mood ?? 3, ...value, sleepHours: Number.isFinite(n!) ? n : undefined });
               }}
             />
-          </div>
-          <div className="field">
+          </label>
+          <label className="field">
             <span className="field__label">체중 (kg)</span>
             <input
               className="input"
@@ -84,7 +84,7 @@ export function ConditionPicker({
                 onChange({ mood: value?.mood ?? 3, ...value, bodyWeightKg: Number.isFinite(n!) ? n : undefined });
               }}
             />
-          </div>
+          </label>
         </div>
       )}
     </div>

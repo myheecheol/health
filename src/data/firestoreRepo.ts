@@ -24,6 +24,12 @@ async function pathFor(item: OutboxItem) {
       return doc(db, 'users', uid, 'exerciseStats', item.docId);
     case 'active':
       return doc(db, 'users', uid, 'active', 'current');
+    case 'rewards':
+      return doc(db, 'users', uid, 'rewards', item.docId);
+    case 'rewardHistory':
+      return doc(db, 'users', uid, 'rewardHistory', item.docId);
+    case 'achievements':
+      return doc(db, 'users', uid, 'achievements', 'unlocked');
   }
 }
 

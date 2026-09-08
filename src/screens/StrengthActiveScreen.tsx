@@ -128,7 +128,7 @@ export function StrengthActiveScreen() {
 
   function handleFinish() {
     const result = finishStrengthSession(notes);
-    if (result) nav(`/complete/${result.session.id}`, { replace: true });
+    if (result) nav(`/complete/${result.session.id}`, { replace: true, state: { result } });
     else nav('/', { replace: true });
   }
 
@@ -331,7 +331,7 @@ function FinishPanel({
           <div className="stat__label">볼륨 kg</div>
         </div>
       </div>
-      <div className="field">
+      <label className="field">
         <span className="field__label">오늘 운동 메모 (선택)</span>
         <input
           className="input input--text"
@@ -339,7 +339,7 @@ function FinishPanel({
           onChange={(e) => setNotes(e.target.value)}
           placeholder="컨디션 좋음 / 오른쪽 어깨가 뻐근함..."
         />
-      </div>
+      </label>
       <button className="btn btn--strength btn--lg" style={{ marginTop: 14 }} onClick={onFinish} disabled={finishing}>
         운동 완료
       </button>

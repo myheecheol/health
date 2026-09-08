@@ -9,6 +9,11 @@
  */
 
 const NS = 'fitrpg';
+/**
+ * 저장소 키에 들어가는 버전입니다.
+ * 이 값을 올리면 기존 기록을 못 찾게 되므로, 내용 구조가 바뀔 때는
+ * 이 값 대신 User.dataVersion 을 올리고 store 에서 변환하세요.
+ */
 export const SCHEMA_VERSION = 1;
 
 export type StoreKey =
@@ -17,6 +22,10 @@ export type StoreKey =
   | 'exerciseStats'
   | 'active'
   | 'restEndsAt'
+  | 'rewards'
+  | 'rewardHistory'
+  | 'achievements'
+  | 'xpHistory'
   | 'outbox'
   | 'deviceId';
 

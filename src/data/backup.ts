@@ -1,5 +1,5 @@
 import { getState, replaceAll } from '../state/store';
-import type { ExerciseStats, User, WorkoutSession } from './types';
+import type { ExerciseStats, Reward, RewardHistoryEntry, User, WorkoutSession } from './types';
 import { SCHEMA_VERSION } from './localStore';
 
 export interface BackupFile {
@@ -9,6 +9,9 @@ export interface BackupFile {
   user: User;
   sessions: WorkoutSession[];
   exerciseStats: Record<string, ExerciseStats>;
+  rewards: Reward[];
+  rewardHistory: RewardHistoryEntry[];
+  achievements: Record<string, number>;
 }
 
 export function buildBackup(): BackupFile {
@@ -20,6 +23,9 @@ export function buildBackup(): BackupFile {
     user: s.user,
     sessions: s.sessions,
     exerciseStats: s.exerciseStats,
+    rewards: s.rewards,
+    rewardHistory: s.rewardHistory,
+    achievements: s.achievements,
   };
 }
 
@@ -67,10 +73,17 @@ export function restoreBackup(raw: string): RestoreResult {
 
   const sessions = [...merged.values()].sort((a, b) => a.startTime - b.startTime);
 
+  // 보상 사용 내역도 id 기준으로 합칩니다 — 중복 차감이 생기지 않도록.
+  const historyById = new Map(current.rewardHistory.map((h) => [h.id, h]));
+  for (const h of file.rewardHistory ?? []) historyById.set(h.id, h);
+
   replaceAll({
     user: { ...current.user, ...file.user, id: current.user.id },
     sessions,
     exerciseStats: { ...current.exerciseStats, ...(file.exerciseStats ?? {}) },
+    rewards: file.rewards?.length ? file.rewards : current.rewards,
+    rewardHistory: [...historyById.values()].sort((a, b) => a.usedAt - b.usedAt),
+    achievements: { ...current.achievements, ...(file.achievements ?? {}) },
   });
 
   return { ok: true, sessions: sessions.length };
