@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getExercise, getRoutine } from '../config/routines';
 import { isRunningSession, isStrengthSession, type WorkoutSession } from '../data/types';
@@ -5,32 +6,89 @@ import { formatDuration, formatKg, formatKm, setsVolume, summarizeStrength } fro
 import { visibleSessions } from '../state/store';
 import { useAppState } from '../state/useStore';
 import { TopBar } from '../components/TopBar';
+import { CalendarScreen } from './CalendarScreen';
+
+type View = 'list' | 'calendar';
+type Filter = 'all' | 'strength' | 'running';
 
 export function HistoryScreen() {
   useAppState();
-  const sessions = [...visibleSessions()].sort((a, b) => b.startTime - a.startTime);
+  const [view, setView] = useState<View>('list');
+  const [filter, setFilter] = useState<Filter>('all');
+
+  const all = visibleSessions();
+  const sessions = useMemo(() => {
+    const sorted = [...all].sort((a, b) => b.startTime - a.startTime);
+    if (filter === 'strength') return sorted.filter((s) => !isRunningSession(s));
+    if (filter === 'running') return sorted.filter(isRunningSession);
+    return sorted;
+  }, [all, filter]);
+
+  // 월별로 묶어 보여줍니다. 기록이 쌓여도 훑어보기 쉽게.
+  const byMonth = useMemo(() => {
+    const map = new Map<string, WorkoutSession[]>();
+    for (const s of sessions) {
+      const key = s.date.slice(0, 7); // 'YYYY-MM'
+      const list = map.get(key);
+      if (list) list.push(s);
+      else map.set(key, [s]);
+    }
+    return [...map.entries()];
+  }, [sessions]);
 
   return (
     <>
       <TopBar title="운동 기록" />
       <div className="page">
-        {sessions.length === 0 ? (
-          <div className="empty">아직 기록이 없습니다.</div>
+        <div className="tabs">
+          <button className="tab" aria-selected={view === 'list'} onClick={() => setView('list')}>
+            목록
+          </button>
+          <button className="tab" aria-selected={view === 'calendar'} onClick={() => setView('calendar')}>
+            캘린더
+          </button>
+        </div>
+
+        {view === 'calendar' ? (
+          <CalendarScreen />
         ) : (
-          <div className="list">
-            {sessions.map((s) => (
-              <Link key={s.id} to={`/history/${s.id}`} className="list-item">
-                <span className={`badge badge--${isRunningSession(s) ? 'running' : 'strength'}`}>
-                  {isRunningSession(s) ? '🏃' : s.workoutType === 'STRENGTH_A' ? 'A' : 'B'}
-                </span>
-                <div className="list-item__main">
-                  <div className="list-item__title">{titleOf(s)}</div>
-                  <div className="list-item__sub">{s.date} · {formatDuration(s.duration)}</div>
+          <>
+            <div className="tabs">
+              {([['all', '전체'], ['strength', '근력'], ['running', '러닝']] as const).map(([key, label]) => (
+                <button key={key} className="tab" aria-selected={filter === key} onClick={() => setFilter(key)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {sessions.length === 0 ? (
+              <div className="empty">
+                {filter === 'all' ? '아직 기록이 없습니다.' : '이 종류의 기록이 없습니다.'}
+              </div>
+            ) : (
+              byMonth.map(([monthKey, list]) => (
+                <div key={monthKey}>
+                  <div className="month-header">
+                    {monthKey.slice(0, 4)}년 {Number(monthKey.slice(5, 7))}월 · {list.length}회
+                  </div>
+                  <div className="list">
+                    {list.map((s) => (
+                      <Link key={s.id} to={`/history/${s.id}`} className="list-item">
+                        <span className={`badge badge--${isRunningSession(s) ? 'running' : 'strength'}`}>
+                          {isRunningSession(s) ? '🏃' : s.workoutType === 'STRENGTH_A' ? 'A' : 'B'}
+                        </span>
+                        <div className="list-item__main">
+                          <div className="list-item__title">{titleOf(s)}</div>
+                          <div className="list-item__sub">{s.date} · {formatDuration(s.duration)}</div>
+                        </div>
+                        <div className="list-item__right">→</div>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
-                <div className="list-item__right">→</div>
-              </Link>
-            ))}
-          </div>
+              ))
+            )}
+          </>
         )}
       </div>
     </>

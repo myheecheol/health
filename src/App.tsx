@@ -35,15 +35,6 @@ function Shell() {
         <Route path="/history" element={<HistoryScreen />} />
         <Route path="/history/:sessionId" element={<SessionDetailScreen />} />
         <Route
-          path="/calendar"
-          element={
-            <ComingSoonScreen
-              title="캘린더" emoji="📅" stage="2단계"
-              items={['운동한 날 표시', '웨이트/러닝 아이콘 구분', '날짜별 기록 열람']}
-            />
-          }
-        />
-        <Route
           path="/stats"
           element={
             <ComingSoonScreen
@@ -70,6 +61,7 @@ function Shell() {
             />
           }
         />
+        <Route path="/calendar" element={<Navigate to="/history" replace />} />
         <Route path="/settings" element={<SettingsScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -245,3 +245,51 @@ input { font-family: inherit; }
 @media (min-width: 640px) {
   .page { padding: 24px; padding-bottom: calc(var(--nav-h) + 40px); }
 }
+
+/* ── 캘린더 ────────────────────────────── */
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.cal-head__label { font-size: 18px; font-weight: 800; }
+.cal-nav {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--r-md); color: var(--text);
+  width: 44px; height: 44px; font-size: 18px; font-weight: 700;
+}
+
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-weekday {
+  text-align: center; font-size: 12px; font-weight: 700;
+  color: var(--text-faint); padding-bottom: 6px;
+}
+.cal-day {
+  aspect-ratio: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  background: var(--surface-2); border: 1.5px solid transparent;
+  border-radius: var(--r-sm); color: var(--text-dim);
+  font-size: 14px; font-weight: 600; padding: 0;
+}
+.cal-day--pad { background: transparent; }
+.cal-day--has { color: var(--text); background: var(--surface-3); }
+.cal-day--today { border-color: var(--text-faint); }
+.cal-day--selected { border-color: var(--xp); background: var(--xp-soft); color: var(--text); }
+.cal-dots { display: flex; gap: 3px; height: 6px; align-items: center; }
+.cal-dot { width: 6px; height: 6px; border-radius: 50%; }
+.cal-dot--strength { background: var(--strength); }
+.cal-dot--running { background: var(--running); }
+
+.cal-legend { display: flex; gap: 14px; justify-content: center; margin-top: 14px; font-size: 12px; color: var(--text-dim); }
+.cal-legend span { display: inline-flex; align-items: center; gap: 5px; }
+
+/* ── 탭 ────────────────────────────────── */
+.tabs { display: flex; gap: 6px; margin-bottom: var(--gap); }
+.tab {
+  flex: 1; min-height: 42px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text-dim);
+  border-radius: var(--r-md); font-size: 14px; font-weight: 700;
+}
+.tab[aria-selected='true'] { background: var(--surface-3); color: var(--text); border-color: var(--border-strong); }
+
+.month-header {
+  font-size: 13px; font-weight: 700; color: var(--text-faint);
+  margin: 18px 0 8px; letter-spacing: 0.02em;
+}
+.month-header:first-child { margin-top: 0; }
