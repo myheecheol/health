@@ -8,7 +8,14 @@
 
 ---
 
-## 실행
+## 앱 열기
+
+**https://myheecheol.github.io/health/**
+
+휴대폰 브라우저에서 위 주소를 열고 **홈 화면에 추가**하면 앱처럼 전체화면으로 실행됩니다.
+이 브랜치에 푸시할 때마다 GitHub Actions가 자동으로 다시 배포합니다.
+
+## 직접 실행
 
 ```bash
 npm install
@@ -180,4 +187,12 @@ RUNNING_LIMITS            // 거리 입력 허용 범위
 | 3 | XP · 레벨 · 스트릭 · 업적 · PR | ✅ 완료 |
 | 4 | 보상 상점 · 포인트 사용 | ✅ 완료 |
 | 5 | 통계 · 그래프 | 예정 |
-| 6 | 과부하 추천 · 알림 · PWA | 부분 완료 |
+| 6 | 과부하 추천 · 알림 · 통계 | 예정 |
+
+## 배포
+
+`.github/workflows/deploy.yml` 이 푸시마다 타입 검사 → 테스트 → 빌드 →
+GitHub Pages 배포를 수행합니다. 테스트가 실패하면 배포되지 않습니다.
+
+주소가 `/health/` 하위이므로 `vite.config.ts` 의 `base` 를 그에 맞춰 두었습니다.
+다른 곳에 올릴 때는 `BASE_PATH=/ npm run build` 처럼 바꿀 수 있습니다.
