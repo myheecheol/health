@@ -75,17 +75,101 @@ Firestore 업로드           ← 서버가 성공을 응답해야 큐에서 지
 
 ## Firebase 연결
 
-`.env.example`을 `.env`로 복사하고 값을 채우면 자동으로 클라우드 동기화가 켜집니다.
+연결하면 기록이 클라우드에 저장되어 **휴대폰과 컴퓨터에서 같은 기록**을 보게 되고,
+브라우저 데이터를 지워도 기록이 남습니다.
+연결하지 않아도 앱은 정상 동작합니다 (그 기기에만 저장됨).
+
+### 1단계 — Firebase에서 프로젝트 만들기
+
+1. [Firebase 콘솔](https://console.firebase.google.com) 접속 → **프로젝트 추가**
+2. 이름은 아무거나 (예: `fitness-rpg`). Google 애널리틱스는 꺼도 됩니다.
+
+### 2단계 — 익명 로그인 켜기
+
+왼쪽 메뉴 **빌드 → Authentication → 시작하기 →** `Sign-in method` 탭
+→ **익명(Anonymous)** 선택 → **사용 설정** 켜고 저장.
+
+기기마다 이름 없는 계정이 하나 생기고, 그 계정에만 자기 기록이 붙습니다.
+아이디·비밀번호를 만들 필요가 없습니다.
+
+### 3단계 — 데이터베이스 만들기
+
+왼쪽 메뉴 **빌드 → Firestore Database → 데이터베이스 만들기**
+→ 위치는 `asia-northeast3 (서울)` → 프로덕션 모드로 시작.
+
+만들어지면 **규칙** 탭으로 가서, 이 저장소의 [`firestore.rules`](firestore.rules)
+파일 내용을 통째로 복사해 붙여넣고 **게시**를 누르세요.
+이게 있어야 남이 내 기록을 못 읽습니다.
+
+### 4단계 — 설정값 6개 받아오기
+
+왼쪽 위 **⚙️ 톱니바퀴 → 프로젝트 설정** → 아래로 스크롤해서 **내 앱** 항목
+→ **`</>` (웹) 아이콘** 클릭 → 앱 닉네임 아무거나 입력 → **앱 등록**.
+
+그러면 이런 화면이 나옵니다.
+
+```js
+const firebaseConfig = {
+  apiKey: "AIzaSyC7x...",
+  authDomain: "fitness-rpg-1234.firebaseapp.com",
+  projectId: "fitness-rpg-1234",
+  storageBucket: "fitness-rpg-1234.appspot.com",
+  messagingSenderId: "123456789012",
+  appId: "1:123456789012:web:abc123def456"
+};
+```
+
+**여기 있는 6개 값이 필요한 전부입니다.** 이 화면은 나중에도
+프로젝트 설정 → 내 앱에서 다시 볼 수 있습니다.
+
+> `apiKey`라는 이름 때문에 비밀번호처럼 보이지만, 아닙니다.
+> 이 값들은 웹앱이라면 누구나 볼 수 있게 코드에 포함되는 **주소표 같은 것**입니다.
+> 실제 보안은 3단계에서 붙여넣은 규칙과 익명 로그인이 담당합니다.
+
+### 5단계 — 값을 어디에 넣나
+
+**두 군데**에 넣어야 합니다. 목적이 다릅니다.
+
+#### (가) 배포된 앱 — `myheecheol.github.io/health`
+
+이쪽이 실제로 쓰는 앱입니다. GitHub 저장소에 넣습니다.
+
+저장소 → **Settings** → 왼쪽 **Secrets and variables → Actions**
+→ **Variables** 탭 → **New repository variable** 을 6번 눌러 하나씩 추가합니다.
+
+| Name (그대로 입력) | Value |
+|---|---|
+| `VITE_FIREBASE_API_KEY` | `apiKey` 값 |
+| `VITE_FIREBASE_AUTH_DOMAIN` | `authDomain` 값 |
+| `VITE_FIREBASE_PROJECT_ID` | `projectId` 값 |
+| `VITE_FIREBASE_STORAGE_BUCKET` | `storageBucket` 값 |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | `messagingSenderId` 값 |
+| `VITE_FIREBASE_APP_ID` | `appId` 값 |
+
+따옴표는 빼고 값만 넣으세요. 다 넣었으면 저장소에 아무 커밋이나 푸시하거나,
+**Actions** 탭 → `Deploy to GitHub Pages` → **Run workflow** 로 다시 배포하면 적용됩니다.
+
+적용됐는지 확인하려면 앱 오른쪽 위 배지를 보세요.
+`💾 로컬 저장` 이 `✅ 저장됨` 으로 바뀌면 성공입니다.
+
+#### (나) 내 컴퓨터에서 개발할 때 (선택)
+
+`npm run dev` 로 직접 돌려볼 때만 필요합니다. 안 해도 됩니다.
 
 ```bash
 cp .env.example .env
 ```
 
-1. [Firebase 콘솔](https://console.firebase.google.com)에서 프로젝트 생성
-2. **Authentication → 로그인 방법 → 익명** 사용 설정
-3. **Firestore Database** 생성
-4. **규칙** 탭에 이 저장소의 `firestore.rules` 내용을 붙여넣기
-5. **프로젝트 설정 → 내 앱 → 웹앱 추가** 후 나오는 값을 `.env`에 입력
+만들어진 `.env` 파일을 열어 `=` 뒤에 값을 붙여넣습니다.
+
+```
+VITE_FIREBASE_API_KEY=AIzaSyC7x...
+VITE_FIREBASE_PROJECT_ID=fitness-rpg-1234
+```
+
+`.env` 는 `.gitignore` 에 있어서 깃허브에 올라가지 않습니다.
+
+---
 
 값이 비어 있으면 앱은 로컬 저장소만 사용하며 정상 동작합니다.
 Firebase SDK는 별도 청크로 분리되어 있어, 설정하지 않으면 내려받지도 않습니다.
