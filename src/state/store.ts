@@ -8,6 +8,7 @@ import { enqueue } from '../data/syncEngine';
 import { assertFiniteNumber } from '../data/validate';
 import type {
   ActiveSession,
+  Exercise,
   AppState,
   Condition,
   ExerciseStats,
@@ -640,23 +641,93 @@ export function visibleSessions(): WorkoutSession[] {
 }
 
 /**
- * 진행 중인 근력 세션에서 지금 해야 할 종목과 세트 번호를 계산합니다.
- * 세트 배열만 보고 매번 다시 계산하므로, 새로고침해도 있던 자리로 정확히 돌아옵니다.
- * skipped에 담긴 종목은 건너뜁니다.
+ * 진행 중인 근력 세션의 종목별 진행 상황.
+ * 세트 배열만 보고 매번 다시 계산하므로 새로고침해도 그대로 복구됩니다.
  */
-export function currentStrengthPosition(active: ActiveSession | null, skipped: readonly string[] = []) {
+export interface StrengthProgress {
+  exercises: Exercise[];
+  /** 종목 id → 완료한 세트 수 */
+  counts: Map<string, number>;
+  /** 모든 종목이 정해진 세트를 채웠는지 */
+  allDone: boolean;
+}
+
+export function strengthProgress(active: ActiveSession | null): StrengthProgress | null {
   if (!active || !isStrengthSession(active)) return null;
   const exercises = getExercisesFor(active.workoutType);
   const counts = new Map<string, number>();
   for (const s of active.sets) counts.set(s.exerciseId, (counts.get(s.exerciseId) ?? 0) + 1);
+  return {
+    exercises,
+    counts,
+    allDone: exercises.every((ex) => (counts.get(ex.id) ?? 0) >= ex.defaultSets),
+  };
+}
 
-  for (let i = 0; i < exercises.length; i++) {
+/**
+ * 지금 화면에 띄울 종목과 세트 번호.
+ *
+ * preferredId 를 주면 그 종목을 보여줍니다 — 헬스장에서 기구가 차 있으면
+ * 순서를 건너뛰고 다른 종목부터 해야 하기 때문입니다.
+ * 주지 않으면 순서상 첫 미완료 종목을 고릅니다.
+ *
+ * 정해진 세트를 다 채운 종목을 골라도 막지 않습니다. 한 세트 더 할 수 있어야 합니다.
+ */
+export function currentStrengthPosition(
+  active: ActiveSession | null,
+  preferredId?: string | null,
+) {
+  const progress = strengthProgress(active);
+  if (!progress) return null;
+  const { exercises, counts } = progress;
+
+  const pick = (i: number) => {
     const ex = exercises[i]!;
-    if (skipped.includes(ex.id)) continue;
     const done = counts.get(ex.id) ?? 0;
-    if (done < ex.defaultSets) {
-      return { exercise: ex, exerciseIndex: i, setNumber: done + 1, totalExercises: exercises.length, counts };
-    }
+    return {
+      exercise: ex,
+      exerciseIndex: i,
+      setNumber: done + 1,
+      doneSets: done,
+      totalExercises: exercises.length,
+      counts,
+    };
+  };
+
+  if (preferredId) {
+    const i = exercises.findIndex((ex) => ex.id === preferredId);
+    if (i >= 0) return pick(i);
   }
-  return { exercise: null, exerciseIndex: exercises.length, setNumber: 0, totalExercises: exercises.length, counts };
+
+  const firstUnfinished = exercises.findIndex((ex) => (counts.get(ex.id) ?? 0) < ex.defaultSets);
+  if (firstUnfinished >= 0) return pick(firstUnfinished);
+
+  return {
+    exercise: null,
+    exerciseIndex: exercises.length,
+    setNumber: 0,
+    doneSets: 0,
+    totalExercises: exercises.length,
+    counts,
+  };
+}
+
+/**
+ * 방금 끝낸 종목 다음으로 넘어갈 종목.
+ * 뒤쪽부터 찾고, 없으면 앞쪽으로 한 바퀴 돕니다 —
+ * 사용자가 고른 순서를 존중해, 이미 지나친 종목으로 되돌아가 붙잡지 않습니다.
+ */
+export function nextUnfinishedAfter(active: ActiveSession | null, exerciseId: string): string | null {
+  const progress = strengthProgress(active);
+  if (!progress) return null;
+  const { exercises, counts } = progress;
+
+  const from = exercises.findIndex((ex) => ex.id === exerciseId);
+  if (from < 0) return null;
+
+  for (let step = 1; step <= exercises.length; step++) {
+    const ex = exercises[(from + step) % exercises.length]!;
+    if ((counts.get(ex.id) ?? 0) < ex.defaultSets) return ex.id;
+  }
+  return null;
 }

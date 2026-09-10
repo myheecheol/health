@@ -12,7 +12,10 @@ import {
   currentStrengthPosition,
   discardActiveSession,
   finishStrengthSession,
+  getState,
+  nextUnfinishedAfter,
   skipRest,
+  strengthProgress,
   undoLastSet,
 } from '../state/store';
 import { useAppState } from '../state/useStore';
@@ -32,11 +35,15 @@ export function StrengthActiveScreen() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
   const [notes, setNotes] = useState('');
-  /** 이번 세션에서 건너뛴 종목. 기록을 남기지 않고 화면에서만 넘깁니다. */
-  const [skipped, setSkipped] = useState<string[]>([]);
+  /**
+   * 사용자가 직접 고른 종목. null이면 순서상 첫 미완료 종목을 보여줍니다.
+   * 헬스장에서 기구가 차 있을 때 순서를 바꿔 할 수 있어야 합니다.
+   */
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [forceFinish, setForceFinish] = useState(false);
 
-  const position = currentStrengthPosition(active, skipped);
+  const progress = strengthProgress(active);
+  const position = currentStrengthPosition(active, selectedId);
   const exercise = position?.exercise ?? null;
 
   /**
@@ -51,6 +58,23 @@ export function StrengthActiveScreen() {
     const thisSession = [...active.sets].reverse().find((s) => s.exerciseId === exercise.id);
     return thisSession ? { weight: thisSession.weight, reps: thisSession.reps } : null;
   }, [active, exercise, position, state.exerciseStats]);
+
+  /**
+   * 현재 종목 칩을 띠 안에서 보이는 위치로 끌어옵니다.
+   * 자동으로 다음 종목으로 넘어갔을 때 그 칩이 화면 밖에 있으면
+   * 지금 어느 종목인지 알 수 없습니다.
+   */
+  const pickerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const chip = pickerRef.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!chip) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    chip.scrollIntoView({
+      behavior: reduce ? 'auto' : 'smooth',
+      inline: 'center',
+      block: 'nearest',
+    });
+  }, [exercise?.id]);
 
   // 세트가 넘어갈 때마다 입력칸을 비워 흐릿한 값이 다시 보이게 합니다.
   const suggestion = exercise ? recommendWeight(exercise, state.exerciseStats[exercise.id]) : null;
@@ -100,7 +124,8 @@ export function StrengthActiveScreen() {
   const exercises = getExercisesFor(active.workoutType);
   const summary = summarizeStrength({ ...active, completed: true });
   const elapsed = (now - active.startTime) / 1000;
-  const allDone = exercise === null;
+  /** 고른 종목이 없고 모든 종목을 채웠을 때만 마무리 화면을 띄웁니다 */
+  const showFinish = exercise === null;
 
   function handleCompleteSet() {
     if (!exercise || !position) return;
@@ -122,6 +147,12 @@ export function StrengthActiveScreen() {
     setError(null);
     const msg = compareWithLast(state.exerciseStats[exercise.id], position.setNumber, w.value, r.value);
     completeSet(exercise.id, position.setNumber, w.value, r.value);
+
+    // 이 종목의 정해진 세트를 다 채웠으면 다음 미완료 종목으로 넘어갑니다.
+    // 뒤쪽부터 찾으므로, 이미 지나친 종목으로 되돌아가 붙잡지 않습니다.
+    if (position.setNumber >= exercise.defaultSets) {
+      setSelectedId(nextUnfinishedAfter(getState().active, exercise.id));
+    }
 
     const hitTarget = r.value >= exercise.targetReps;
     setFeedback(msg ?? (hitTarget ? '목표 반복 달성!' : null));
@@ -147,12 +178,38 @@ export function StrengthActiveScreen() {
         {/* 진행 상황 */}
         <div className="row" style={{ marginBottom: 8 }}>
           <span className="badge badge--strength">
-            {position?.exercise ? position.exerciseIndex + 1 : exercises.length} / {exercises.length} 종목
+            종목 {progress ? progress.exercises.filter((e) => (progress.counts.get(e.id) ?? 0) >= e.defaultSets).length : 0}
+            {' / '}{exercises.length} 완료
           </span>
           <span className="badge">⏱ {formatClock(elapsed)}</span>
         </div>
 
-        {allDone ? (
+        {/* 종목 선택 — 눌러서 아무 종목으로나 바로 이동합니다 */}
+        {progress && (
+          <div className="ex-picker" role="tablist" aria-label="종목 선택" ref={pickerRef}>
+            {progress.exercises.map((ex) => {
+              const done = progress.counts.get(ex.id) ?? 0;
+              const complete = done >= ex.defaultSets;
+              const current = exercise?.id === ex.id;
+              return (
+                <button
+                  key={ex.id}
+                  role="tab"
+                  aria-selected={current}
+                  className={'ex-chip' + (current ? ' ex-chip--on' : '') + (complete ? ' ex-chip--done' : '')}
+                  onClick={() => setSelectedId(ex.id)}
+                >
+                  <span className="ex-chip__name">{ex.name}</span>
+                  <span className="ex-chip__count">
+                    {complete ? `✓ ${done}` : `${done} / ${ex.defaultSets}`}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {showFinish ? (
           <FinishPanel
             summary={summary}
             notes={notes}
@@ -168,12 +225,15 @@ export function StrengthActiveScreen() {
             <div className="active-head">
               <div className="active-head__exercise">{exercise.name}</div>
               <div className="active-head__set">
-                SET {position!.setNumber} / {exercise.defaultSets} · 목표 {exercise.targetReps}회
+                {position!.setNumber > exercise.defaultSets
+                  ? `추가 ${position!.setNumber - exercise.defaultSets}세트`
+                  : `SET ${position!.setNumber} / ${exercise.defaultSets}`}
+                {' · 목표 '}{exercise.targetReps}회
               </div>
             </div>
 
             <div className="progress-dots">
-              {Array.from({ length: exercise.defaultSets }, (_, i) => (
+              {Array.from({ length: Math.max(exercise.defaultSets, position!.setNumber) }, (_, i) => (
                 <span
                   key={i}
                   className={
@@ -246,20 +306,14 @@ export function StrengthActiveScreen() {
                 세트 완료
               </button>
 
-              <div className="btn-row" style={{ marginTop: 10 }}>
-                <button className="btn btn--ghost btn--sm" onClick={undoLastSet} disabled={active.sets.length === 0}>
-                  ↩ 이전 세트 취소
-                </button>
-                <button
-                  className="btn btn--ghost btn--sm"
-                  onClick={() => {
-                    if (!window.confirm(`${exercise.name}의 남은 세트를 건너뛸까요?\n이미 기록한 세트는 그대로 남습니다.`)) return;
-                    setSkipped((prev) => [...prev, exercise.id]);
-                  }}
-                >
-                  종목 건너뛰기
-                </button>
-              </div>
+              <button
+                className="btn btn--ghost btn--sm"
+                style={{ width: '100%', marginTop: 10 }}
+                onClick={undoLastSet}
+                disabled={active.sets.length === 0}
+              >
+                ↩ 이전 세트 취소
+              </button>
             </div>
 
             {state.restEndsAt !== null && (
@@ -287,7 +341,7 @@ export function StrengthActiveScreen() {
           </>
         )}
 
-        {forceFinish && !allDone && (
+        {forceFinish && !showFinish && (
           <FinishPanel
             summary={summary}
             notes={notes}

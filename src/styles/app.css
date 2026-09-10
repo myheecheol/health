@@ -495,3 +495,36 @@ input { font-family: inherit; }
 .nudge--warn { background: rgba(255,201,77,.1); border: 1px solid rgba(255,201,77,.35); color: var(--gold); }
 .nudge--good { background: var(--running-soft); border: 1px solid rgba(36,214,154,.35); color: var(--running); }
 .nudge--info { background: var(--xp-soft); border: 1px solid rgba(139,108,255,.35); color: #c0aeff; }
+
+/* ── 종목 선택 띠 ──────────────────────── */
+/* 헬스장에서 기구가 차 있으면 순서를 바꿔야 하므로, 아무 종목이나 눌러 이동합니다 */
+.ex-picker {
+  display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 10px;
+  margin: 0 calc(var(--pad) * -1); padding-left: var(--pad); padding-right: var(--pad);
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+.ex-picker::-webkit-scrollbar { display: none; }
+
+.ex-chip {
+  flex: none; scroll-snap-align: start;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  min-height: 52px; padding: 8px 13px;
+  background: var(--surface-2); border: 1.5px solid var(--border);
+  border-radius: var(--r-md); color: var(--text-dim);
+  text-align: left;
+}
+.ex-chip__name { font-size: 13.5px; font-weight: 600; white-space: nowrap; }
+.ex-chip__count {
+  font-size: 11.5px; font-family: var(--mono); color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.ex-chip--on {
+  background: var(--strength-soft); border-color: var(--strength); color: var(--strength);
+}
+.ex-chip--on .ex-chip__count { color: var(--strength); }
+
+.ex-chip--done { color: var(--text-faint); }
+.ex-chip--done .ex-chip__count { color: var(--ok); }
+.ex-chip--done.ex-chip--on { color: var(--strength); }
