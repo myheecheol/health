@@ -6,7 +6,7 @@ function user(patch: Partial<User> = {}): User {
   return {
     id: 'me', name: '나', level: 1, xp: 0, rewardPoints: 0,
     currentStreak: 0, bestStreak: 0, nextRoutineOverride: null,
-    settings: { restSeconds: 60, soundEnabled: true, browserNotification: false },
+    settings: { restSeconds: 60, soundEnabled: true, browserNotification: false, keepScreenOn: true },
     dataVersion: 2, createdAt: 0, updatedAt: 0, ...patch,
   };
 }

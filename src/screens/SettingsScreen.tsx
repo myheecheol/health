@@ -23,6 +23,7 @@ export function SettingsScreen() {
   const next = getNextStrengthRoutine(state.sessions, state.user.nextRoutineOverride);
   const sessionCount = visibleSessions().length;
   const achievementCount = Object.keys(state.achievements).length;
+  const wakeLockSupported = typeof navigator !== 'undefined' && 'wakeLock' in navigator;
   const kb = Math.round(usageBytes() / 1024);
 
   async function handleRestore(file: File) {
@@ -165,9 +166,28 @@ export function SettingsScreen() {
 
         {/* 알림 */}
         <div className="card">
-          <div className="card__label">알림</div>
+          <div className="card__label">휴식 종료 알림</div>
+
           <div className="row">
-            <span>휴식 종료 소리</span>
+            <div>
+              <div>운동 중 화면 켜두기</div>
+              <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
+                {wakeLockSupported
+                  ? '화면이 꺼지면 알림이 제때 오지 않습니다'
+                  : '이 기기는 지원하지 않습니다'}
+              </div>
+            </div>
+            <button
+              className="btn btn--sm btn--ghost"
+              disabled={!wakeLockSupported}
+              onClick={() => updateSettings({ keepScreenOn: !state.user.settings.keepScreenOn })}
+            >
+              {state.user.settings.keepScreenOn && wakeLockSupported ? '켜짐' : '꺼짐'}
+            </button>
+          </div>
+
+          <div className="row">
+            <span>소리</span>
             <button
               className="btn btn--sm btn--ghost"
               onClick={() => updateSettings({ soundEnabled: !state.user.settings.soundEnabled })}
@@ -175,8 +195,9 @@ export function SettingsScreen() {
               {state.user.settings.soundEnabled ? '켜짐' : '꺼짐'}
             </button>
           </div>
+
           <div className="row">
-            <span>브라우저 알림</span>
+            <span>알림 배너</span>
             <button
               className="btn btn--sm btn--ghost"
               onClick={async () => {
@@ -186,11 +207,18 @@ export function SettingsScreen() {
                 }
                 const granted = await requestNotificationPermission();
                 updateSettings({ browserNotification: granted });
-                if (!granted) setMessage('브라우저가 알림을 허용하지 않았습니다. 앱 내부 알림은 계속 동작합니다.');
+                if (!granted) {
+                  setMessage('브라우저가 알림을 허용하지 않았습니다. 앱 안에서는 계속 알려드립니다.');
+                }
               }}
             >
               {state.user.settings.browserNotification ? '켜짐' : '꺼짐'}
             </button>
+          </div>
+
+          <div className="banner banner--info" style={{ marginTop: 14, marginBottom: 0, fontWeight: 400 }}>
+            휴식 알림은 <b>앱을 열어둔 동안</b>에만 옵니다.
+            앱을 완전히 닫으면 웹앱은 알림을 보낼 수 없습니다.
           </div>
         </div>
 

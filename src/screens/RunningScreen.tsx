@@ -9,6 +9,7 @@ import { useAppState } from '../state/useStore';
 import { ConditionPicker } from '../components/ConditionPicker';
 import { TopBar } from '../components/TopBar';
 import { useNow } from '../components/useNow';
+import { useWakeLock } from '../components/useWakeLock';
 
 export function RunningScreen() {
   const state = useAppState();
@@ -96,6 +97,9 @@ function RunningActive() {
   const [saving, setSaving] = useState(false);
 
   const active = state.active;
+  // 러닝 중에도 화면을 켜둬야 시간이 정확히 갑니다.
+  useWakeLock(state.user.settings.keepScreenOn && active !== null);
+
   if (!active || !isRunningSession(active)) return null;
 
   const elapsed = (now - active.startTime) / 1000;

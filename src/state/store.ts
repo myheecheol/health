@@ -45,7 +45,12 @@ function createUser(): User {
     currentStreak: 0,
     bestStreak: 0,
     nextRoutineOverride: null,
-    settings: { restSeconds: DEFAULT_REST_SECONDS, soundEnabled: true, browserNotification: false },
+    settings: {
+      restSeconds: DEFAULT_REST_SECONDS,
+      soundEnabled: true,
+      browserNotification: false,
+      keepScreenOn: true,
+    },
     dataVersion: CURRENT_DATA_VERSION,
     createdAt: now,
     updatedAt: now,
@@ -101,6 +106,11 @@ function rebuildExerciseStats(s: AppState): AppState {
  * 저장소 키 버전이 아니라 User.dataVersion 으로 판단하므로 기존 데이터가 사라지지 않습니다.
  */
 function migrate(s: AppState): AppState {
+  // 나중에 추가된 설정 항목은 기존 사용자에게 없으므로 기본값을 채웁니다.
+  // dataVersion 과 무관하게 매번 확인해야 설정이 undefined 로 남지 않습니다.
+  const defaults = createUser().settings;
+  s = { ...s, user: { ...s.user, settings: { ...defaults, ...s.user.settings } } };
+
   if ((s.user.dataVersion ?? 1) >= CURRENT_DATA_VERSION) return s;
 
   const completed = s.sessions

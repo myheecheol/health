@@ -145,6 +145,8 @@ export interface UserSettings {
   restSeconds: number;
   soundEnabled: boolean;
   browserNotification: boolean;
+  /** 운동 중 화면이 꺼지지 않게 합니다. 꺼지면 휴식 알림이 제때 오지 않습니다. */
+  keepScreenOn: boolean;
 }
 
 export interface User {

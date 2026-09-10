@@ -20,6 +20,7 @@ import {
 } from '../state/store';
 import { useAppState } from '../state/useStore';
 import { useNow } from '../components/useNow';
+import { useWakeLock } from '../components/useWakeLock';
 import { beep, browserNotify, vibrate } from '../components/notify';
 import { TopBar } from '../components/TopBar';
 
@@ -41,6 +42,9 @@ export function StrengthActiveScreen() {
    */
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [forceFinish, setForceFinish] = useState(false);
+
+  // 운동 중에는 화면을 켜둡니다 — 꺼지면 휴식 타이머 알림이 제때 오지 않습니다.
+  useWakeLock(state.user.settings.keepScreenOn && active !== null);
 
   const progress = strengthProgress(active);
   const position = currentStrengthPosition(active, selectedId);
